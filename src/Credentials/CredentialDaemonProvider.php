@@ -30,7 +30,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 class CredentialDaemonProvider
 {
     const ENV_SOCKET = 'AWS_CREDENTIAL_DAEMON_SOCKET';
-    const DOC_LINK = 'https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-credential-daemon.html';
+    const DOC_LINK = 'https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-credsd.html';
     const DEFAULT_CONNECT_TIMEOUT = 1.0;
     const DEFAULT_TIMEOUT = 5.0;
 
