@@ -99,7 +99,7 @@ class SsoTokenProvider implements RefreshableTokenProviderInterface
             }
 
             $profile = $profiles[$this->profileName];
-            if (array_key_exists('daemon_credential', $profile)
+            if (array_key_exists('credential_daemon', $profile)
                 && !empty($profile['sso_account_id'])
                 && !empty($profile['sso_role_name'])
             ) {

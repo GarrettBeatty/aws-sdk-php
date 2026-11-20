@@ -313,7 +313,7 @@ class CredentialDaemonProviderTest extends TestCase
         $this->servers[] = $server;
     }
 
-    private const DEV = "[profile dev]\ndaemon_credential = dev\n";
+    private const DEV = "[profile dev]\ncredential_daemon = dev\n";
 
     // ---------------------------------------------------------------------
     // Success
@@ -376,8 +376,8 @@ class CredentialDaemonProviderTest extends TestCase
     public function testDefaultSectionResolvesAndProfilePrefixWins(): void
     {
         $this->writeConfig(
-            "[default]\ndaemon_credential = plain\n"
-            . "[profile default]\ndaemon_credential = prefixed\n"
+            "[default]\ncredential_daemon = plain\n"
+            . "[profile default]\ncredential_daemon = prefixed\n"
         );
         $this->startDaemon([['reply' => self::successReply()]]);
 
@@ -480,7 +480,7 @@ class CredentialDaemonProviderTest extends TestCase
         file_put_contents($process, "#!/bin/sh\necho '{\"Version\":1,"
             . "\"AccessKeyId\":\"AKIDPROCESS\",\"SecretAccessKey\":\"s\"}'\n");
         chmod($process, 0700);
-        $this->writeConfig($profile . "daemon_credential = dev\n"
+        $this->writeConfig($profile . "credential_daemon = dev\n"
             . "aws_access_key_id = AKIDPLAIN\naws_secret_access_key = s\n"
             . "credential_process = {$process}\n" . $rest . $role);
         file_put_contents($this->dir . '/credentials',
@@ -499,7 +499,7 @@ class CredentialDaemonProviderTest extends TestCase
             $this->assertSame($ssoError->getMessage(), $e->getMessage());
         }
         // The chain ends as it does for the profile without
-        // `daemon_credential`: no other credential setting of the profile
+        // `credential_daemon`: no other credential setting of the profile
         // is used.
         $e = self::chainError(CredentialProvider::defaultProvider());
         $this->assertSame(get_class($chainError), get_class($e));
@@ -518,7 +518,7 @@ class CredentialDaemonProviderTest extends TestCase
     public function testSsoProfileWithNeitherKeyIgnoresDaemonCredential(): void
     {
         $this->writeConfig(
-            "[profile dev]\nsso_session = s\ndaemon_credential = dev\nrole_arn = x\n"
+            "[profile dev]\nsso_session = s\ncredential_daemon = dev\nrole_arn = x\n"
             . "[sso-session s]\nsso_start_url = https://example.awsapps.com/start\n"
             . "sso_region = us-east-1\n"
         );
@@ -604,7 +604,7 @@ class CredentialDaemonProviderTest extends TestCase
         $this->assertSame(CredentialDaemonException::INVALID_CONFIG, $e->getErrorCode());
         $this->assertStringContainsString('two credential sources', $e->getMessage());
         $this->assertStringContainsString('web_identity_token_file', $e->getMessage());
-        $this->assertStringContainsString('daemon_credential', $e->getMessage());
+        $this->assertStringContainsString('credential_daemon', $e->getMessage());
         $this->assertStringNotContainsString('source_profile', $e->getMessage());
         $this->assertFalse($stsCalled, 'AssumeRoleWithWebIdentity must not be called');
     }
@@ -631,7 +631,7 @@ class CredentialDaemonProviderTest extends TestCase
         $this->assertSame(CredentialDaemonException::INVALID_CONFIG, $e->getErrorCode());
         $this->assertStringContainsString('two credential sources', $e->getMessage());
         $this->assertStringContainsString('web_identity_token_file', $e->getMessage());
-        $this->assertStringContainsString('daemon_credential', $e->getMessage());
+        $this->assertStringContainsString('credential_daemon', $e->getMessage());
         $this->assertStringContainsString('Remove one', $e->getMessage());
         $this->assertStringContainsString('profile dev', $e->getMessage());
         $this->assertStringNotContainsString('source_profile', $e->getMessage());
@@ -683,7 +683,7 @@ class CredentialDaemonProviderTest extends TestCase
 
     private const ROLE = "[profile role]\nrole_arn = arn:aws:iam::123456789012:role/r\n"
         . "source_profile = dev\n"
-        . "[profile dev]\ndaemon_credential = dev\nregion = us-east-1\n";
+        . "[profile dev]\ncredential_daemon = dev\nregion = us-east-1\n";
 
     public function testRoleProfileWithDaemonSourceThrowsFromIni(): void
     {
@@ -776,7 +776,7 @@ class CredentialDaemonProviderTest extends TestCase
     {
         file_put_contents($this->dir . '/credentials', "[role]\n"
             . "role_arn = arn:aws:iam::123456789012:role/r\nsource_profile = dev\n"
-            . "[dev]\ndaemon_credential = dev\n"
+            . "[dev]\ncredential_daemon = dev\n"
             . "credential_process = echo {}\n");
         $this->writeConfig('');
 
@@ -788,7 +788,7 @@ class CredentialDaemonProviderTest extends TestCase
     private const ROLE_SSO_SOURCE = "[profile admin]\n"
         . "role_arn = arn:aws:iam::111111111111:role/Admin\n"
         . "source_profile = dev\n"
-        . "[profile dev]\ndaemon_credential = dev\nsso_session = corp\n"
+        . "[profile dev]\ncredential_daemon = dev\nsso_session = corp\n"
         . "sso_account_id = 111111111111\nsso_role_name = ReadOnly\nregion = us-east-1\n";
 
     public function testRoleProfileWithDaemonSsoSourceThrowsDaemonError(): void
@@ -850,7 +850,7 @@ class CredentialDaemonProviderTest extends TestCase
         $this->writeConfig("[profile dev]\nregion = us-east-1\n");
         file_put_contents(
             $this->dir . '/credentials',
-            "[dev]\ndaemon_credential = dev\naws_access_key_id = AKIDCREDS\n"
+            "[dev]\ncredential_daemon = dev\naws_access_key_id = AKIDCREDS\n"
             . "aws_secret_access_key = s\n"
         );
         $this->setEnv('AWS_PROFILE', 'dev');
@@ -879,12 +879,12 @@ class CredentialDaemonProviderTest extends TestCase
     public static function invalidNameProvider(): array
     {
         return [
-            'empty' => ["daemon_credential =\n"],
-            'leading dot' => ["daemon_credential = .dev\n"],
-            'too long' => ['daemon_credential = ' . str_repeat('a', 65) . "\n"],
-            'space' => ["daemon_credential = \"a b\"\n"],
-            'slash' => ["daemon_credential = a/b\n"],
-            'array' => ["daemon_credential[] = x\n"],
+            'empty' => ["credential_daemon =\n"],
+            'leading dot' => ["credential_daemon = .dev\n"],
+            'too long' => ['credential_daemon = ' . str_repeat('a', 65) . "\n"],
+            'space' => ["credential_daemon = \"a b\"\n"],
+            'slash' => ["credential_daemon = a/b\n"],
+            'array' => ["credential_daemon[] = x\n"],
         ];
     }
 
@@ -897,7 +897,7 @@ class CredentialDaemonProviderTest extends TestCase
         $e = $this->fetchError($this->provider());
 
         $this->assertSame(CredentialDaemonException::INVALID_CONFIG, $e->getErrorCode());
-        $this->assertStringContainsString('daemon_credential', $e->getMessage());
+        $this->assertStringContainsString('credential_daemon', $e->getMessage());
         $this->assertStringContainsString('profile dev', $e->getMessage());
         $this->assertSame([], $this->requests());
     }
@@ -906,7 +906,7 @@ class CredentialDaemonProviderTest extends TestCase
     {
         $name = '_' . str_repeat('a.', 31) . 'b';
         $this->assertSame(64, strlen($name));
-        $this->writeConfig("[profile dev]\ndaemon_credential = {$name}\n");
+        $this->writeConfig("[profile dev]\ncredential_daemon = {$name}\n");
         $this->startDaemon([['reply' => self::successReply()]]);
 
         $this->provider()()->wait();
@@ -1065,6 +1065,77 @@ class CredentialDaemonProviderTest extends TestCase
         $this->assertSame(CredentialDaemonException::NOT_RUNNING, $e->getErrorCode());
         $this->assertStringContainsString($env, $e->getMessage());
         $this->assertCount(0, $this->requests());
+    }
+
+    public function testSocketOptionWinsOverEnv(): void
+    {
+        $this->writeConfig(self::DEV);
+        $socket = $this->startDaemon([['reply' => self::successReply()]], false);
+        $this->setEnv('AWS_CREDENTIAL_DAEMON_SOCKET', '/some/where.sock');
+        $provider = $this->linuxProvider(['profile' => 'dev', 'socket' => $socket]);
+
+        $this->assertSame('ASIADAEMON', $provider()->wait()->getAccessKeyId());
+        $this->assertSame([$socket], $provider->dialed);
+        $this->assertCount(1, $this->requests());
+    }
+
+    public function testSocketOptionDialFailureDoesNotFallBack(): void
+    {
+        // A regular file at the option's path, and a live env socket.
+        $this->writeConfig(self::DEV);
+        $option = $this->dir . '/o.sock';
+        file_put_contents($option, '');
+        $this->startDaemon([['reply' => self::successReply()]]);
+        $provider = $this->linuxProvider(['profile' => 'dev', 'socket' => $option]);
+
+        $e = $this->fetchError($provider);
+
+        $this->assertSame([$option], $provider->dialed);
+        $this->assertSame(CredentialDaemonException::NOT_RUNNING, $e->getErrorCode());
+        $this->assertStringContainsString($option, $e->getMessage());
+        $this->assertCount(0, $this->requests());
+    }
+
+    public static function ignoredSocketOptionProvider(): array
+    {
+        return [
+            'empty' => [''],
+            'relative' => ['relative/d.sock'],
+        ];
+    }
+
+    #[DataProvider('ignoredSocketOptionProvider')]
+    public function testIgnoredSocketOptionFallsBackToEnv(string $value): void
+    {
+        $this->setEnv('AWS_CREDENTIAL_DAEMON_SOCKET', '/some/where.sock');
+        $provider = $this->linuxProvider(['socket' => $value]);
+
+        $this->assertSame('/some/where.sock', $provider->resolveSocketPath());
+    }
+
+    public function testOldKeyIsNotADaemonProfile(): void
+    {
+        $this->writeConfig("[profile dev]\ndaemon_credential = dev\n");
+
+        $this->assertFalse(CredentialDaemonProvider::profileUsesDaemon('dev'));
+    }
+
+    public function testNonStringSocketOptionIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new CredentialDaemonProvider(['socket' => 1]);
+    }
+
+    public function testDefaultProviderPassesSocket(): void
+    {
+        $this->writeConfig(self::DEV);
+        $this->setEnv('AWS_PROFILE', 'dev');
+        $socket = $this->startDaemon([['reply' => self::successReply()]], false);
+
+        $creds = CredentialProvider::defaultProvider(['credential_daemon_socket' => $socket])()->wait();
+
+        $this->assertSame('ASIADAEMON', $creds->getAccessKeyId());
+        $this->assertCount(1, $this->requests());
     }
 
     public static function homeSocketOsProvider(): array
@@ -1960,7 +2031,7 @@ class CredentialDaemonProviderTest extends TestCase
      */
     private const PHP_OUTCOMES = [
         // This SDK's chain moves on after the SSO provider's error, as it
-        // does for the profile without `daemon_credential`, and reaches the
+        // does for the profile without `credential_daemon`, and reaches the
         // stub next provider.
         'sso-only-account' => [
             'result' => 'notResolved',
@@ -2019,7 +2090,7 @@ class CredentialDaemonProviderTest extends TestCase
     public function testDaemonCasesAreAllRun(): void
     {
         $this->assertSame(
-            '0b7a818a86d9878567809b93a680d710574e86bb6a8cba9e7ac886f09a54fd59',
+            '3c7353876f86bf9387026d87a4fbacda7e6fdd451cb3d6a262080baa1ee136f1',
             hash_file('sha256', self::CASES_FILE)
         );
         $ids = array_column(self::daemonCases(), 'id');

@@ -8,13 +8,14 @@ use GuzzleHttp\Promise\PromiseInterface;
 
 /**
  * Credential provider that gets credentials from a local credential daemon
- * for a profile in the shared config file that sets `daemon_credential`.
+ * for a profile in the shared config file that sets `credential_daemon`.
  *
  * Each fetch sends one JSON-RPC 2.0 request over a Unix domain socket, found
  * at the first of:
- * 1. the AWS_CREDENTIAL_DAEMON_SOCKET environment variable, when it is an
+ * 1. the `socket` option, when it is an absolute path,
+ * 2. the AWS_CREDENTIAL_DAEMON_SOCKET environment variable, when it is an
  *    absolute path,
- * 2. `$HOME/.aws/credential-daemon.sock`, when anything is there, including
+ * 3. `$HOME/.aws/credential-daemon.sock`, when anything is there, including
  *    a link whose target is missing.
  *
  * A {@see CredentialDaemonException} stops {@see CredentialProvider::chain()}.
@@ -29,7 +30,7 @@ use GuzzleHttp\Promise\PromiseInterface;
 class CredentialDaemonProvider
 {
     const ENV_SOCKET = 'AWS_CREDENTIAL_DAEMON_SOCKET';
-    const DOC_LINK = 'https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-credential-daemon.html';
+    const DOC_LINK = 'https://docs.aws.amazon.com/cli/latest/userguide/cli-authentication-credsd.html';
     const DEFAULT_CONNECT_TIMEOUT = 1.0;
     const DEFAULT_TIMEOUT = 5.0;
 
@@ -55,6 +56,9 @@ class CredentialDaemonProvider
     /** @var float */
     private $timeout;
 
+    /** @var string|null */
+    private $socket;
+
     /**
      * The following options are supported:
      *
@@ -67,6 +71,9 @@ class CredentialDaemonProvider
      *   credential daemon. Defaults to 1.
      * - timeout: (float) Seconds the whole call to the credential daemon may
      *   take. Defaults to 5.
+     * - socket: (string) Path of the credential daemon's socket. Used before
+     *   AWS_CREDENTIAL_DAEMON_SOCKET when it is an absolute path; an empty
+     *   or relative path is ignored.
      *
      * @param array $config
      */
@@ -86,6 +93,13 @@ class CredentialDaemonProvider
             'timeout',
             self::DEFAULT_TIMEOUT
         );
+        $socket = $config['socket'] ?? null;
+        if ($socket !== null && !is_string($socket)) {
+            throw new \InvalidArgumentException(
+                "The credential daemon option 'socket' must be a string."
+            );
+        }
+        $this->socket = $socket;
     }
 
     /**
@@ -129,6 +143,10 @@ class CredentialDaemonProvider
      */
     public function resolveSocketPath(): ?string
     {
+        if ($this->socket !== null && self::isAbsolute($this->socket)) {
+            return $this->socket;
+        }
+
         $env = getenv(self::ENV_SOCKET);
         if (is_string($env) && self::isAbsolute($env)) {
             return $env;
@@ -191,11 +209,11 @@ class CredentialDaemonProvider
      */
     public static function sectionUsesDaemon(array $section): bool
     {
-        if (!array_key_exists('daemon_credential', $section)) {
+        if (!array_key_exists('credential_daemon', $section)) {
             return false;
         }
         // An SSO profile with neither sso_account_id nor sso_role_name
-        // resolves as if `daemon_credential` were not set.
+        // resolves as if `credential_daemon` were not set.
         if (self::isSsoSection($section)
             && empty($section['sso_account_id'])
             && empty($section['sso_role_name'])
@@ -298,10 +316,10 @@ class CredentialDaemonProvider
      */
     private function validateConfig(array $section, string $sectionName, string $file): string
     {
-        $name = $section['daemon_credential'];
+        $name = $section['credential_daemon'];
         if (!is_string($name) || !preg_match(self::NAME_PATTERN, $name)) {
             throw new CredentialDaemonException(
-                "Profile {$sectionName} in {$file} has an invalid `daemon_credential`."
+                "Profile {$sectionName} in {$file} has an invalid `credential_daemon`."
                 . " A credential name is 1 to 64 letters, digits, '.', '_' or '-',"
                 . " and does not start with '.'.",
                 CredentialDaemonException::INVALID_CONFIG
@@ -310,7 +328,7 @@ class CredentialDaemonProvider
         if (array_key_exists('web_identity_token_file', $section)) {
             throw new CredentialDaemonException(
                 "Profile {$sectionName} in {$file} has two credential sources,"
-                . " `daemon_credential` and `web_identity_token_file`. Remove one"
+                . " `credential_daemon` and `web_identity_token_file`. Remove one"
                 . " of them.",
                 CredentialDaemonException::INVALID_CONFIG
             );
@@ -320,7 +338,7 @@ class CredentialDaemonProvider
                 ? substr($sectionName, strlen('profile '))
                 : $sectionName;
             throw new CredentialDaemonException(
-                "Profile {$sectionName} in {$file} sets both `daemon_credential`"
+                "Profile {$sectionName} in {$file} sets both `credential_daemon`"
                 . " and `role_arn`, but a profile that uses a credential daemon"
                 . " cannot assume a role. Move the role to its own profile with"
                 . " `source_profile = {$bareName}`.",

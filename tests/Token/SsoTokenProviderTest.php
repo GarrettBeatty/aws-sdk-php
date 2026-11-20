@@ -171,7 +171,7 @@ EOT;
         $dir = $this->clearEnv();
         $ini = <<<EOT
 [profile test]
-daemon_credential = dev
+credential_daemon = dev
 sso_session = admin
 sso_account_id = 111122223333
 sso_role_name = Admin
@@ -200,7 +200,7 @@ EOT;
         $dir = $this->clearEnv();
         $ini = <<<EOT
 [profile test]
-daemon_credential = dev
+credential_daemon = dev
 sso_session = admin
 [sso-session admin]
 sso_region = us-east-2
