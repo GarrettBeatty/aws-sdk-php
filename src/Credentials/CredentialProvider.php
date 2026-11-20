@@ -63,7 +63,7 @@ class CredentialProvider
      * first checks for environment variables,
      * then checks for assumed role via web identity,
      * then checks for a credential daemon when the profile in ~/.aws/config
-     * sets `daemon_credential` (a credential daemon error ends the chain),
+     * sets `credential_daemon` (a credential daemon error ends the chain),
      * then checks for cached SSO credentials from the CLI,
      * then check for credential_process in the "default" profile in ~/.aws/credentials,
      * then checks for the "default" profile in ~/.aws/credentials,
@@ -80,7 +80,9 @@ class CredentialProvider
      *                      provider options. Also takes
      *                      `credential_daemon_connect_timeout` and
      *                      `credential_daemon_timeout`, in seconds, for the
-     *                      credential daemon provider (defaults 1 and 5).
+     *                      credential daemon provider (defaults 1 and 5),
+     *                      and `credential_daemon_socket`, the path of the
+     *                      credential daemon's socket.
      *
      * @return callable
      */
@@ -105,10 +107,10 @@ class CredentialProvider
         if (!isset($config['use_aws_shared_config_files'])
             || $config['use_aws_shared_config_files'] !== false
         ) {
-            $daemonTimeouts = self::credentialDaemonTimeouts($config);
+            $daemonSettings = self::credentialDaemonSettings($config);
             $defaultChain['credential_daemon'] = self::credentialDaemon(
                 ['profile' => $profileName]
-                + self::credentialDaemonProviderOptions($daemonTimeouts)
+                + self::credentialDaemonProviderOptions($daemonSettings)
             );
             if (isset($config['credentials'])
                 && $config['credentials'] instanceof CacheInterface
@@ -134,7 +136,7 @@ class CredentialProvider
             $defaultChain['ini_config'] = self::ini(
                 'profile ' . $profileName,
                 self::getConfigFileName(),
-                $daemonTimeouts
+                $daemonSettings
             );
         }
 
@@ -366,7 +368,7 @@ class CredentialProvider
     /**
      * Credential provider that gets credentials from a local credential
      * daemon for a profile in the shared config file that sets
-     * `daemon_credential`.
+     * `credential_daemon`.
      *
      * @param array $config Array of configuration data.
      *
@@ -840,7 +842,7 @@ class CredentialProvider
         }
 
         $sourceProfileName = "";
-        // `daemon_credential` is read only from the shared config file, so a
+        // `credential_daemon` is read only from the shared config file, so a
         // daemon source profile need not be in the file the role is in.
         $daemonSource = !empty($roleProfile['source_profile'])
             && CredentialDaemonProvider::profileUsesDaemon($roleProfile['source_profile']);
@@ -1083,18 +1085,19 @@ class CredentialProvider
     }
 
     /**
-     * Returns the credential daemon timeouts of a defaultProvider config.
+     * Returns the credential daemon settings of a defaultProvider config.
      */
-    private static function credentialDaemonTimeouts(array $config): array
+    private static function credentialDaemonSettings(array $config): array
     {
         return array_intersect_key($config, [
             'credential_daemon_connect_timeout' => true,
             'credential_daemon_timeout' => true,
+            'credential_daemon_socket' => true,
         ]);
     }
 
     /**
-     * Maps credential daemon timeouts to CredentialDaemonProvider options.
+     * Maps credential daemon settings to CredentialDaemonProvider options.
      */
     private static function credentialDaemonProviderOptions(array $config): array
     {
@@ -1104,6 +1107,9 @@ class CredentialProvider
         }
         if (isset($config['credential_daemon_timeout'])) {
             $options['timeout'] = $config['credential_daemon_timeout'];
+        }
+        if (isset($config['credential_daemon_socket'])) {
+            $options['socket'] = $config['credential_daemon_socket'];
         }
 
         return $options;
